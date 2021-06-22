@@ -1,54 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-//import { API } from 'aws-amplify';
+import { API } from 'aws-amplify';
 import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react';
 import { listNotes } from './graphql/queries';
 import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } from './graphql/mutations';
-import { API, Storage } from 'aws-amplify';
-import Amplify, { Auth } from 'aws-amplify';
-import awsconfig from './aws-exports';
-Amplify.configure(awsconfig);
 
 const initialFormState = { name: '', description: '' }
 
 function App() {
   const [notes, setNotes] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
-  async function onChange(e) {
-  if (!e.target.files[0]) return
-  const file = e.target.files[0];
-  setFormData({ ...formData, image: file.name });
-  await Storage.put(file.name, file);
-  fetchNotes();
-}
 
   useEffect(() => {
     fetchNotes();
   }, []);
 
-async function fetchNotes() {
-  const apiData = await API.graphql({ query: listNotes });
-  const notesFromAPI = apiData.data.listNotes.items;
-  await Promise.all(notesFromAPI.map(async note => {
-    if (note.image) {
-      const image = await Storage.get(note.image);
-      note.image = image;
-    }
-    return note;
-  }))
-  setNotes(apiData.data.listNotes.items);
-}
-
-async function createNote() {
-  if (!formData.name || !formData.description) return;
-  await API.graphql({ query: createNoteMutation, variables: { input: formData } });
-  if (formData.image) {
-    const image = await Storage.get(formData.image);
-    formData.image = image;
+  async function fetchNotes() {
+    const apiData = await API.graphql({ query: listNotes });
+    setNotes(apiData.data.listNotes.items);
   }
-  setNotes([ ...notes, formData ]);
-  setFormData(initialFormState);
-}
+
+  async function createNote() {
+    if (!formData.name || !formData.description) return;
+    await API.graphql({ query: createNoteMutation, variables: { input: formData } });
+    setNotes([ ...notes, formData ]);
+    setFormData(initialFormState);
+  }
 
   async function deleteNote({ id }) {
     const newNotesArray = notes.filter(note => note.id !== id);
@@ -57,10 +34,6 @@ async function createNote() {
   }
 
   return (
-    <input
-      type="file"
-      onChange={onChange}
-    />
     <div className="App">
       <h1>My Notes App</h1>
       <input
@@ -75,18 +48,15 @@ async function createNote() {
       />
       <button onClick={createNote}>Create Note</button>
       <div style={{marginBottom: 30}}>
-        
-  notes.map(note => (
-    <div key={note.id || note.name}>
-      <h2>{note.name}</h2>
-      <p>{note.description}</p>
-      <button onClick={() => deleteNote(note)}>Delete note</button>
-      {
-        note.image && <img src={note.image} style={{width: 400}} />
-      }
-    </div>
-  ))
-}
+        {
+          notes.map(note => (
+            <div key={note.id || note.name}>
+              <h2>{note.name}</h2>
+              <p>{note.description}</p>
+              <button onClick={() => deleteNote(note)}>Delete note</button>
+            </div>
+          ))
+        }
       </div>
       <AmplifySignOut />
     </div>
